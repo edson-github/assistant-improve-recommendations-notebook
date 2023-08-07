@@ -47,10 +47,7 @@ def round_decimal(x, digits=0):
     x = decimal.Decimal(str(x))
     if digits == 0:
         return int(x.quantize(decimal.Decimal("1"), rounding='ROUND_HALF_UP'))
-    if digits > 1:
-        string = '1e' + str(-1 * digits)
-    else:
-        string = '1e' + str(-1 * digits)
+    string = f'1e{str(-1 * digits)}'
     return float(x.quantize(decimal.Decimal(string), rounding='ROUND_HALF_UP'))
 
 
@@ -65,8 +62,7 @@ def intersection(list1, list2):
        ----------
        list3 : Intersection of list1 and list2
     """
-    list3 = [value for value in list1 if value in list2]
-    return list3
+    return [value for value in list1 if value in list2]
 
 
 def get_effective_df(df_tbot_raw, ineffective_intents, df_escalate_nodes, filter_non_intent_node=False, assistant_nodes=None):
@@ -86,12 +82,11 @@ def get_effective_df(df_tbot_raw, ineffective_intents, df_escalate_nodes, filter
     # Add an 'Escalated_conversation' flag to dataframe
     df_tbot_raw['Escalated_conversation'] = False
 
-    # Load node titles
-    node_title_map = dict()
-    for idx, node in assistant_nodes.iterrows():
-        if str(node['title']) != 'nan':
-            node_title_map[node['dialog_node']] = node['title']
-
+    node_title_map = {
+        node['dialog_node']: node['title']
+        for idx, node in assistant_nodes.iterrows()
+        if str(node['title']) != 'nan'
+    }
     # Use node title in nodes_visited_s and response_dialog_stack if it exists
     for idx, item in df_tbot_raw.iterrows():
         node_id_visit_list = item['response.output.nodes_visited_s']
@@ -100,7 +95,7 @@ def get_effective_df(df_tbot_raw, ineffective_intents, df_escalate_nodes, filter
                 node_id_visit_list[seq_id] = node_title_map[node_id]
 
         node_stack_list = item['response_dialog_stack']
-        for stack_id, stack_item in enumerate(node_stack_list):
+        for stack_item in node_stack_list:
             for key, value in stack_item.items():
                 if value in node_title_map:
                     stack_item[key] = node_title_map[value]
@@ -111,9 +106,9 @@ def get_effective_df(df_tbot_raw, ineffective_intents, df_escalate_nodes, filter
         ineffective_nodes = df_escalate_nodes[df_escalate_nodes['Valid']]['Node ID'].tolist()
         ineffective_nodes = [node if node not in node_title_map else node_title_map[node] for node in ineffective_nodes]
 
+    conversation_id = []
     # If nodes visited contains any of the ineffective node ids, get the conversation id
     if filter_non_intent_node:
-        conversation_id = list()
         if ineffective_nodes:
             df_tbot_raw['last_node'] = df_tbot_raw['response.output.nodes_visited_s'].str[-1].apply(
                 lambda x: x if x else [''])
@@ -122,10 +117,15 @@ def get_effective_df(df_tbot_raw, ineffective_intents, df_escalate_nodes, filter
             df_tbot_raw['last_node_value'] = df_tbot_raw['last_node_value'].apply(lambda x: x if x else ['']).str[0]
             df_tbot_raw['contain_intent'] = df_tbot_raw['last_node_value'].apply(
                 lambda x: bool(re.match('#[a-zA-Z_0-9]+', str(x))))
-            conversation_id = [conversation for conversation in df_tbot_raw.loc[
-                df_tbot_raw['response.output.nodes_visited_s'].apply(
-                    lambda x: bool(intersection(x, ineffective_nodes)))].loc[df_tbot_raw['contain_intent']][
-                'response.context.conversation_id']]
+            conversation_id = list(
+                df_tbot_raw.loc[
+                    df_tbot_raw['response.output.nodes_visited_s'].apply(
+                        lambda x: bool(intersection(x, ineffective_nodes))
+                    )
+                ].loc[df_tbot_raw['contain_intent']][
+                    'response.context.conversation_id'
+                ]
+            )
 
         # If top intent for a message is present in ineffective_intents list, get the conversation id
         conversation_id.extend(df_tbot_raw.loc[(df_tbot_raw['response.top_intent_intent'].isin(
@@ -133,11 +133,14 @@ def get_effective_df(df_tbot_raw, ineffective_intents, df_escalate_nodes, filter
                                    df_tbot_raw['contain_intent']].tolist())
 
     else:
-        conversation_id = list()
         if ineffective_nodes:
-            conversation_id = [conversation for conversation in df_tbot_raw.loc[
-                df_tbot_raw['response.output.nodes_visited_s'].apply(
-                    lambda x: bool(intersection(x, ineffective_nodes)))]['response.context.conversation_id']]
+            conversation_id = list(
+                df_tbot_raw.loc[
+                    df_tbot_raw['response.output.nodes_visited_s'].apply(
+                        lambda x: bool(intersection(x, ineffective_nodes))
+                    )
+                ]['response.context.conversation_id']
+            )
 
         # If top intent for a message is present in ineffective_intents list, get the conversation id
         conversation_id.extend(df_tbot_raw.loc[(df_tbot_raw['response.top_intent_intent'].isin(
@@ -174,14 +177,16 @@ def get_coverage_df(df_tbot_raw, df_coverage_nodes, conf_threshold):
 
     # Filter all the valid dialog node ids for non-coverage
     df_coverage_valid = df_coverage_nodes[df_coverage_nodes['Valid']]
-    df_coverage_valid_dict = dict()
-    for idx, row in df_coverage_nodes[df_coverage_nodes['Valid']].iterrows():
-        df_coverage_valid_dict[row['Node ID']] = {row['Node ID'], row['Node Name']}
-
+    df_coverage_valid_dict = {
+        row['Node ID']: {row['Node ID'], row['Node Name']}
+        for idx, row in df_coverage_nodes[
+            df_coverage_nodes['Valid']
+        ].iterrows()
+    }
     # (1) Mark all messages that hit any non-coverage node including but not limited to 'anything_else' as 'Not covered'
     #  and update the 'Not Covered cause' column
     for node_id, name_set in df_coverage_valid_dict.items():
-        cause = "'{}' node".format(df_coverage_valid.loc[df_coverage_valid['Node ID'] == node_id, 'Condition'].values[0])
+        cause = f"'{df_coverage_valid.loc[df_coverage_valid['Node ID'] == node_id, 'Condition'].values[0]}' node"
         df_tbot_raw.loc[
             (df_tbot_raw['response.output.nodes_visited_s'].apply(lambda x: bool(intersection(x, name_set)))), [
                 'Covered', 'Not Covered cause']] = [False, cause]
@@ -431,8 +436,9 @@ def extract_disambiguation_utterances(df_formatted):
                                                           for d in df_formatted.request_timestamp]
     unique_days = df_formatted['request_datetime_interval'].unique()
     conversation_ids = df_formatted.response_context_conversation_id.unique()
-    print('Extracting disambiguation logs from {} conversations ...'.format(len(conversation_ids)))
-    list_conversations = list()
+    print(
+        f'Extracting disambiguation logs from {len(conversation_ids)} conversations ...'
+    )
     disambiguation_utterances = None
     num_disambiguation_utterances = 0
     num_disambiguation_conversations = 0
@@ -440,6 +446,7 @@ def extract_disambiguation_utterances(df_formatted):
     num_both_utterances = 0
     num_more_conversations = 0
     num_both_conversations = 0
+    list_conversations = []
     for conversation_id in conversation_ids:
         utterances = df_formatted.loc[df_formatted.response_context_conversation_id == conversation_id].sort_values(
             by='request_timestamp').reset_index(drop=True)
@@ -462,16 +469,15 @@ def extract_disambiguation_utterances(df_formatted):
                     if more_options:
                         utterance.more_option_list = more_options
                         more_options = None
-                    suggestions = None
                     if disambiguation_utterances is None:
                         disambiguation_utterances = pd.DataFrame([utterance])
                     else:
                         disambiguation_utterances = disambiguation_utterances.append(utterance)
                 else:
-                    suggestions = None
                     more_options = None
                     auto_learn_preview = None
                     auto_learn_apply = None
+                suggestions = None
             if utterance.response_generic_0_response_type == 'suggestion':
                 suggestions = utterance.response_generic_0_suggestions
                 if 'auto_learn_preview' in utterance:
@@ -498,29 +504,46 @@ def extract_disambiguation_utterances(df_formatted):
             num_both_conversations += 1
 
     print('\n\nData Statistics:')
-    print('Number of days: {}'.format(len(unique_days)))
-    print('Disambiguation events per day: {}'.format(round(num_disambiguation_utterances / len(unique_days))))
+    print(f'Number of days: {len(unique_days)}')
+    print(
+        f'Disambiguation events per day: {round(num_disambiguation_utterances / len(unique_days))}'
+    )
 
-    utterance_statistics = {}
-    utterance_statistics['Utterance'] = ['Total', 'Disambiguation', 'More Options', 'Both']
-    utterance_statistics['Count'] = [len(df_formatted.log_id.unique()), num_disambiguation_utterances, num_more_utterances, num_both_utterances]
-    utterance_statistics['Percentage'] = ['100.0%', '{}%'.format(round(
-        num_disambiguation_utterances / len(df_formatted.log_id.unique()) * 100, 1)), '{}%'.format(round(
-        num_more_utterances / len(df_formatted.log_id.unique()) * 100, 1)), '{}%'.format(round(
-        num_both_utterances / len(df_formatted.log_id.unique()) * 100, 1))]
+    utterance_statistics = {
+        'Utterance': ['Total', 'Disambiguation', 'More Options', 'Both'],
+        'Count': [
+            len(df_formatted.log_id.unique()),
+            num_disambiguation_utterances,
+            num_more_utterances,
+            num_both_utterances,
+        ],
+    }
+    utterance_statistics['Percentage'] = [
+        '100.0%',
+        f'{round(num_disambiguation_utterances / len(df_formatted.log_id.unique()) * 100, 1)}%',
+        f'{round(num_more_utterances / len(df_formatted.log_id.unique()) * 100, 1)}%',
+        f'{round(num_both_utterances / len(df_formatted.log_id.unique()) * 100, 1)}%',
+    ]
 
     statistics_pd = pd.DataFrame.from_dict(utterance_statistics)
     statistics_pd = statistics_pd.set_index('Utterance')
     utterance_html = statistics_pd.to_html().replace('     <th>Utterance</th>\n      <th></th>\n      <th></th>\n    </tr>\n', '').replace('<th></th>\n', '<th>Utterance</th>\n')
 
-    conversation_statistics = {}
-    conversation_statistics['Conversation'] = ['Total', 'Disambiguation', 'More Options', 'Both']
-    conversation_statistics['Count'] = [len(conversation_ids), num_disambiguation_conversations, num_more_conversations, num_both_conversations]
-    conversation_statistics['Percentage'] = ['100.0%', '{}%'.format(round(
-        num_disambiguation_conversations / len(conversation_ids) * 100, 1)), '{}%'.format(round(
-        num_more_conversations / len(conversation_ids) * 100, 1)), '{}%'.format(round(num_both_conversations / len(conversation_ids) * 100,
-                                                                   1))]
-
+    conversation_statistics = {
+        'Conversation': ['Total', 'Disambiguation', 'More Options', 'Both'],
+        'Count': [
+            len(conversation_ids),
+            num_disambiguation_conversations,
+            num_more_conversations,
+            num_both_conversations,
+        ],
+        'Percentage': [
+            '100.0%',
+            f'{round(num_disambiguation_conversations / len(conversation_ids) * 100, 1)}%',
+            f'{round(num_more_conversations / len(conversation_ids) * 100, 1)}%',
+            f'{round(num_both_conversations / len(conversation_ids) * 100, 1)}%',
+        ],
+    }
     statistics_pd = pd.DataFrame.from_dict(conversation_statistics)
     statistics_pd = statistics_pd.set_index('Conversation')
     conversation_html = statistics_pd.to_html().replace('     <th>Conversation</th>\n      <th></th>\n      <th></th>\n    </tr>\n', '').replace('<th></th>\n', '<th>Conversation</th>\n')
@@ -533,17 +556,17 @@ def extract_disambiguation_utterances(df_formatted):
 def generate_cooccurrence_matrix(data, assistant_nodes=None, exclude_nodes=None):
     if exclude_nodes is None:
         exclude_nodes = set()
-    all_suggestion_list = list()
+    all_suggestion_list = []
     for idx, item in data.iterrows():
         suggestion_dialog_node_list = [s[3] for s in item.suggestion_list]
-        if len(suggestion_dialog_node_list) > 0:
+        if suggestion_dialog_node_list:
             all_suggestion_list.append(suggestion_dialog_node_list)
 
     none_above_node_name = list(data[data['is_none_above_node'] == True].selected_dialog_node.unique())
 
     if len(none_above_node_name) > 1:
         print('Found more than one \'None of the Above\' nodes.')
-    elif len(none_above_node_name) == 0:
+    elif not none_above_node_name:
         print('No \'None of the Above\' node found')
     else:
         for i in all_suggestion_list:
@@ -551,7 +574,7 @@ def generate_cooccurrence_matrix(data, assistant_nodes=None, exclude_nodes=None)
                 i.remove(none_above_node_name[0])
 
     if assistant_nodes is not None:
-        node_title_map = dict()
+        node_title_map = {}
         for idx, node in assistant_nodes.iterrows():
             if str(node['title']) != 'nan':
                 node_title_map[node['dialog_node']] = node['title']
@@ -574,7 +597,7 @@ def generate_cooccurrence_matrix(data, assistant_nodes=None, exclude_nodes=None)
 
 
 def extract_suggestions(items):
-    suggestions = list()
+    suggestions = []
     for item in items:
         if 'intents' in item['value']:
             if len(item['value']['intents']) == 0:
@@ -601,7 +624,7 @@ def extract_suggestions(items):
             suggestions.append((item['value']['input']['suggestion_id'], item['value']['input']['intents'],
                                 item['label'], dialog_node, none_node))
         else:
-            print('Please check item value {}'.format(item))
+            print(f'Please check item value {item}')
     return suggestions
 
 

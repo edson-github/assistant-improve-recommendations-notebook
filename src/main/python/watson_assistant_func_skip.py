@@ -66,7 +66,7 @@ def get_logs(num_logs, log_list, project_creds, log_filter=None):
                 )
                 min_num = min(num_logs, len(logs_response['logs']))
                 log_list.extend(logs_response['logs'][:min_num])
-                print('\r{} logs retrieved'.format(len(log_list)), end='')
+                print(f'\r{len(log_list)} logs retrieved', end='')
                 num_logs = num_logs - min_num
 
                 current_cursor = None
@@ -81,8 +81,7 @@ def get_logs(num_logs, log_list, project_creds, log_filter=None):
         except Exception as ex:
             print(ex)
         finally:
-            log_df = pd.DataFrame(log_list)
-            return log_df
+            return pd.DataFrame(log_list)
 
 
 def get_logs_jupyter(num_logs, log_list, workspace_creds, log_filter=None):
@@ -129,7 +128,7 @@ def get_logs_jupyter(num_logs, log_list, workspace_creds, log_filter=None):
                 )
                 min_num = min(num_logs, len(logs_response['logs']))
                 log_list.extend(logs_response['logs'][:min_num])
-                print('\r{} logs retrieved'.format(len(log_list)), end='')
+                print(f'\r{len(log_list)} logs retrieved', end='')
                 num_logs = num_logs - min_num
                 current_cursor = None
                 # Check if there is another page of logs to be fetched
@@ -143,5 +142,4 @@ def get_logs_jupyter(num_logs, log_list, workspace_creds, log_filter=None):
         except Exception as ex:
             print(ex)
         finally:
-            log_df = pd.DataFrame(log_list)
-            return log_df
+            return pd.DataFrame(log_list)
