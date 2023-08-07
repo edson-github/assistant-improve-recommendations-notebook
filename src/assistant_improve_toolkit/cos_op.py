@@ -46,8 +46,7 @@ def create_signature_key(key, datestamp, region, service):
     key_date = get_hash(('AWS4' + key).encode('utf-8'), datestamp)
     key_region = get_hash(key_date, region)
     key_service = get_hash(key_region, service)
-    key_signing = get_hash(key_service, 'aws4_request')
-    return key_signing
+    return get_hash(key_service, 'aws4_request')
 
 
 def generate_link(filename, project_io, expiration):
@@ -108,14 +107,17 @@ def generate_link(filename, project_io, expiration):
                          sts.encode('utf-8'),
                          hashlib.sha256).hexdigest()
 
-    # create and send the request
-    request_url = (endpoint + '/' +
-                   project_io.get_storage_metadata()['properties']['bucket_name'] + '/' +
-                   filename + '?' +
-                   standardized_querystring_url_encoded +
-                   '&X-Amz-Signature=' +
-                   signature)
-    return request_url
+    return (
+        endpoint
+        + '/'
+        + project_io.get_storage_metadata()['properties']['bucket_name']
+        + '/'
+        + filename
+        + '?'
+        + standardized_querystring_url_encoded
+        + '&X-Amz-Signature='
+        + signature
+    )
 
 
 def generate_excel_measure(dataframe_list, sheet_name_list, filename, project_io):

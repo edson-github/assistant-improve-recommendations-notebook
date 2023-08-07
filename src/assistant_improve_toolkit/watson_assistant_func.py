@@ -31,9 +31,9 @@ def get_assistant_definition(sdk_object, assistant_info, project=None, overwrite
     workspace_id, assistant_id, skill_id = [assistant_info.get(k) for k in ['workspace_id', 'assistant_id', 'skill_id']]
 
     if len(workspace_id) > 0:
-        filename += '_workspace_{}.json'.format(workspace_id)
+        filename += f'_workspace_{workspace_id}.json'
     elif len(skill_id) > 0:
-        filename += '_skill_{}.json'.format(skill_id)
+        filename += f'_skill_{skill_id}.json'
     else:
         print('Please provide a valid Workspace ID or Skill ID!')
         return None
@@ -51,21 +51,21 @@ def get_assistant_definition(sdk_object, assistant_info, project=None, overwrite
         if type(sdk_object) == AssistantV1:
             if len(workspace_id) > 0:
                 # Fetch the workspace definition
-                print('Loading workspace definition using workspace id: {}'.format(workspace_id))
+                print(f'Loading workspace definition using workspace id: {workspace_id}')
                 assistant_definition = sdk_object.get_workspace(workspace_id=workspace_id, export=True,
                                                                 include_audit=True).get_result()
             elif len(skill_id) > 0:
                 # Fetch the skill definition
-                print('Loading skill definition using skill id: {}'.format(skill_id))
+                print(f'Loading skill definition using skill id: {skill_id}')
                 assistant_definition = sdk_object.get_workspace(workspace_id=skill_id, export=True,
                                                                 include_audit=True).get_result()
             else:
                 print('Please provide a valid Workspace ID or Skill ID!')
                 assistant_definition = None
         elif type(sdk_object) == AssistantV2:
+            assistant_definition = None
             if len(assistant_id) > 0:
-                print('Loading skill definition using assistant id: {}'.format(assistant_id))
-                assistant_definition = None
+                print(f'Loading skill definition using assistant id: {assistant_id}')
                 assistants = sdk_object.export_skills(assistant_id=assistant_id, include_audit=True).get_result()
                 for assistant in assistants["assistant_skills"]:
                     if assistant["type"] == "dialog":
@@ -75,7 +75,6 @@ def get_assistant_definition(sdk_object, assistant_info, project=None, overwrite
                     print('Your assistant does not support dialog')
             else:
                 print('Please provide a valid Assistant ID!')
-                assistant_definition = None
         else:
             print("Please provide a valid watson sdk object")
             assistant_definition = None
@@ -91,7 +90,7 @@ def get_assistant_definition(sdk_object, assistant_info, project=None, overwrite
                     with open(filename, 'wb') as fp:
                         project.save_data(filename, json.dumps(assistant_definition), overwrite=True)
                         # Display success message
-                        print('Definition {} exported as a project asset'.format(fp.name))
+                        print(f'Definition {fp.name} exported as a project asset')
                 else:
                     with open(filename, 'w') as f:
                         json.dump(assistant_definition, f)
@@ -102,7 +101,7 @@ def get_assistant_definition(sdk_object, assistant_info, project=None, overwrite
             return None
 
 def _get_logs_from_v1_api(sdk_object, workspace_id, log_filter, num_logs):
-    log_list = list()
+    log_list = []
     try:
         current_cursor = None
         while num_logs > 0:
@@ -121,7 +120,7 @@ def _get_logs_from_v1_api(sdk_object, workspace_id, log_filter, num_logs):
                 ).get_result()
             min_num = min(num_logs, len(logs_response['logs']))
             log_list.extend(logs_response['logs'][:min_num])
-            print('\r{} logs retrieved'.format(len(log_list)), end='')
+            print(f'\r{len(log_list)} logs retrieved', end='')
             num_logs = num_logs - min_num
             current_cursor = None
             # Check if there is another page of logs to be fetched
@@ -139,7 +138,7 @@ def _get_logs_from_v1_api(sdk_object, workspace_id, log_filter, num_logs):
 
 
 def _get_logs_from_v2_api(sdk_object, environment_id, log_filter, num_logs):
-    log_list = list()
+    log_list = []
     try:
         current_cursor = None
         while num_logs > 0:
@@ -151,7 +150,7 @@ def _get_logs_from_v2_api(sdk_object, environment_id, log_filter, num_logs):
                 ).get_result()
             min_num = min(num_logs, len(logs_response['logs']))
             log_list.extend(logs_response['logs'][:min_num])
-            print('\r{} logs retrieved'.format(len(log_list)), end='')
+            print(f'\r{len(log_list)} logs retrieved', end='')
             num_logs = num_logs - min_num
             current_cursor = None
             # Check if there is another page of logs to be fetched
@@ -202,14 +201,18 @@ def get_logs(sdk_v1_object, sdk_v2_object, assistant_info, num_logs, filename, f
             for file in project.get_files():
                 if file['name'] == filename:
                     if not overwrite:
-                        print('Load logs from existing file {}, set overwrite=True to overwrite'.format(filename))
+                        print(
+                            f'Load logs from existing file {filename}, set overwrite=True to overwrite'
+                        )
                         return load_logs_from_file(filename, project)
                     else:
                         file_exist = True
 
         elif os.path.exists(filename):
             if not overwrite:
-                print('Load logs from existing file {}, set overwrite=True to overwrite'.format(filename))
+                print(
+                    f'Load logs from existing file {filename}, set overwrite=True to overwrite'
+                )
                 return load_logs_from_file(filename, None)
             else:
                 file_exist = True
@@ -220,10 +223,10 @@ def get_logs(sdk_v1_object, sdk_v2_object, assistant_info, num_logs, filename, f
     if version == 1:
         # adding default filters based on assistant_id and workspace_id
         if assistant_id is not None and len(assistant_id) > 0:
-            filters.append('request.context.system.assistant_id::{}'.format(assistant_id))
+            filters.append(f'request.context.system.assistant_id::{assistant_id}')
         if skill_id is not None and len(skill_id) > 0:
-            filters.append('workspace_id::{}'.format(skill_id))
-        
+            filters.append(f'workspace_id::{skill_id}')
+
         logs = _get_logs_from_v1_api(sdk_object=sdk_v1_object,
                                      workspace_id=workspace_id,
                                      log_filter=','.join(filters),
@@ -233,10 +236,10 @@ def get_logs(sdk_v1_object, sdk_v2_object, assistant_info, num_logs, filename, f
                                      environment_id=environment_id,
                                      log_filter=','.join(filters),
                                      num_logs=num_logs)
-    print('\nLoaded {} logs'.format(len(logs)))
+    print(f'\nLoaded {len(logs)} logs')
 
     if not file_exist or overwrite:
-        print('Saving {} logs into {}... '.format(len(logs), filename))
+        print(f'Saving {len(logs)} logs into {filename}... ')
         if project:
             with open(filename, 'wb') as fp:
                 project.save_data(filename, json.dumps(logs, indent=2), overwrite=overwrite)
@@ -257,16 +260,14 @@ def load_logs_from_file(filename, project=None):
         # Get file from cloud object storage
         data = project.get_file(filename).getvalue().decode('utf8')
         logs = json.loads(data)
-        # Read logs into dataframe
-        # log_df = pd.DataFrame.from_records(data_json)
-        print('Loaded {} logs'.format(len(logs)))
     else:
         if not os.path.exists(filename) or not os.path.isfile(filename):
-            raise ValueError('{} either does not exist or is a directory'.format(filename))
-        else:
-            with open(filename) as data:
-                logs = json.load(data)
-            print('Loaded {} logs'.format(len(logs)))
+            raise ValueError(f'{filename} either does not exist or is a directory')
+        with open(filename) as data:
+            logs = json.load(data)
+        # Read logs into dataframe
+        # log_df = pd.DataFrame.from_records(data_json)
+    print(f'Loaded {len(logs)} logs')
     return logs
 
 
@@ -301,7 +302,7 @@ def export_csv_for_intent_recommendation(logs,
         messages = [[m] for m in set(messages)]
     else:
         messages = [[m] for m in messages]
-    print('\nExporting {} messages into CSV...'.format(len(messages)))
+    print(f'\nExporting {len(messages)} messages into CSV...')
 
     if project:
         with open(filename, 'wb') as fp:

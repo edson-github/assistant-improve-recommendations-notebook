@@ -82,11 +82,10 @@ def make_cmap(colors, position=None, bit=False):
     bit_rgb = np.linspace(0, 1, 256)
     if position is None:
         position = np.linspace(0, 1, len(colors))
-    else:
-        if len(position) != len(colors):
-            sys.exit("position length must be the same as colors")
-        elif position[0] != 0 or position[-1] != 1:
-            sys.exit("position must start with 0 and end with 1")
+    elif len(position) != len(colors):
+        sys.exit("position length must be the same as colors")
+    elif position[0] != 0 or position[-1] != 1:
+        sys.exit("position must start with 0 and end with 1")
     if bit:
         for i in range(len(colors)):
             colors[i] = (bit_rgb[colors[i][0]],
@@ -98,8 +97,7 @@ def make_cmap(colors, position=None, bit=False):
         cdict['green'].append((pos, color[1], color[1]))
         cdict['blue'].append((pos, color[2], color[2]))
 
-    cmap = mpl.colors.LinearSegmentedColormap('my_colormap', cdict, 256)
-    return cmap
+    return mpl.colors.LinearSegmentedColormap('my_colormap', cdict, 256)
 
 
 def gbar(ax, x, y, cmap, width=0.5, bottom=5):
@@ -198,9 +196,7 @@ def render_fig(fig):
     fig.savefig(tmpfile, format='jpeg')
     # encode the saved figure
     encoded = base64.b64encode(tmpfile.getvalue())
-    # Store html rendering of figure in string html
-    html = '<img class="colimg" src=\'data:image/png;base64,{}\'>'.format(encoded.decode("utf-8"))
-    return html
+    return f"""<img class="colimg" src=\'data:image/png;base64,{encoded.decode("utf-8")}\'>"""
 
 
 def make_pie(prec, msg, html=True):
@@ -230,10 +226,7 @@ def make_pie(prec, msg, html=True):
     ax.set_xlabel(msg, size='xx-large')
     plt.close()
     # return html rendering of figure if html = True
-    if html:
-        return render_fig(fig)
-    else:
-        return fig
+    return render_fig(fig) if html else fig
 
 
 def coverage_barh(coverage, avg_conf, title, html=True, width=15, height=1.5):
@@ -257,15 +250,31 @@ def coverage_barh(coverage, avg_conf, title, html=True, width=15, height=1.5):
     fig, ax = plt.subplots(figsize=(width, height))
     ax.axis('on')
     # Plot the 'Covered' bar
-    ax.barh(0, bottomdata, left=0, color='#69aaf5', align='center', label='Covered ' + str(bottomdata) + '%',
-            edgecolor=None)
+    ax.barh(
+        0,
+        bottomdata,
+        left=0,
+        color='#69aaf5',
+        align='center',
+        label=f'Covered {str(bottomdata)}%',
+        edgecolor=None,
+    )
     ax.set_title(title, fontdict={'fontsize': 15}, loc='left', weight='bold', y=0.91)
     # Plot the 'Not covered' bar stacked on top of 'Covered' bar
-    ax.barh(0, topdata, left=bottomdata, color='#2b6ab6', align='center', label='Not covered ' + str(topdata) + '%',
-            edgecolor=None)
+    ax.barh(
+        0,
+        topdata,
+        left=bottomdata,
+        color='#2b6ab6',
+        align='center',
+        label=f'Not covered {topdata}%',
+        edgecolor=None,
+    )
     # Add labels for coverage and average confidence
-    labels = ['Covered ' + str(bottomdata) + '% | Average confidence ' + str(avg_conf) + '%',
-              'Not Covered ' + str(topdata) + '%']
+    labels = [
+        f'Covered {str(bottomdata)}% | Average confidence {str(avg_conf)}%',
+        f'Not Covered {topdata}%',
+    ]
     # props = dict(boxstyle='round', facecolor='wheat', alpha=0)
     # Center plot at 0,0
     ax.set_ylim(bottom=0)
@@ -280,10 +289,7 @@ def coverage_barh(coverage, avg_conf, title, html=True, width=15, height=1.5):
     fig.tight_layout()
     plt.close()
     # return html rendering of figure if html = True
-    if html:
-        return render_fig(fig)
-    else:
-        return fig
+    return render_fig(fig) if html else fig
 
 
 def width_bar(perc):
@@ -308,10 +314,7 @@ def round_decimal(x, digits=0):
     x = decimal.Decimal(str(x))
     if digits == 0:
         return int(x.quantize(decimal.Decimal("1"), rounding='ROUND_HALF_UP'))
-    if digits > 1:
-        string = '1e' + str(-1 * digits)
-    else:
-        string = '1e' + str(-1 * digits)
+    string = f'1e{str(-1 * digits)}'
     return float(x.quantize(decimal.Decimal(string), rounding='ROUND_HALF_UP'))
 
 
@@ -381,11 +384,19 @@ def show_coverage_over_time(df_coverage, interval='day'):
         if start_datetime == end_datetime:
             start_datetime -= delta
             end_datetime += delta
-            time_index_df = pd.DataFrame([dt for dt in [start_datetime] + coverage_time.response_datetime_interval.tolist() + [end_datetime]],
-                                         columns=['response_datetime_interval'])
+            time_index_df = pd.DataFrame(
+                list(
+                    [start_datetime]
+                    + coverage_time.response_datetime_interval.tolist()
+                    + [end_datetime]
+                ),
+                columns=['response_datetime_interval'],
+            )
         else:
-            time_index_df = pd.DataFrame([dt for dt in coverage_time.response_datetime_interval.tolist()],
-                             columns=['response_datetime_interval'])
+            time_index_df = pd.DataFrame(
+                list(coverage_time.response_datetime_interval.tolist()),
+                columns=['response_datetime_interval'],
+            )
 
         coverage_data = time_index_df.merge(coverage_time, how='left', on=['response_datetime_interval'])
         coverage_data['Count'] = coverage_data['Count'].fillna(0)
@@ -431,7 +442,7 @@ def show_coverage_over_time(df_coverage, interval='day'):
 
 
 def show_top_node_effort(disambiguation_utterances, top=10, assistant_nodes=None):
-    node_title_map = dict()
+    node_title_map = {}
     if assistant_nodes is not None:
         for idx, node in assistant_nodes.iterrows():
             if str(node['title']) != 'nan':
@@ -453,12 +464,11 @@ def show_top_node_effort(disambiguation_utterances, top=10, assistant_nodes=None
         ~dialog_node_effort_overall_df['selected_dialog_node'].isin(none_above_node_name)]
 
     for idx, item in dialog_node_effort_overall_df.iterrows():
-        if item.selected_dialog_node in node_title_map:
-            dialog_node_effort_overall_df.at[idx, 'selected_dialog_node_name'] = node_title_map[
-                item.selected_dialog_node]
-        else:
-            dialog_node_effort_overall_df.at[idx, 'selected_dialog_node_name'] = item.selected_dialog_node
-
+        dialog_node_effort_overall_df.at[
+            idx, 'selected_dialog_node_name'
+        ] = node_title_map.get(
+            item.selected_dialog_node, item.selected_dialog_node
+        )
     output_notebook(hide_banner=True)
 
     source = ColumnDataSource(dialog_node_effort_overall_df.head(top))
@@ -578,11 +588,11 @@ def show_node_effort(disambiguation_utterances, assistant_nodes=None, interval=N
         if len(none_above_node_name) > 1:
             print('Found more than one \'None of the Above\' nodes.')
 
-        if len(none_above_node_name) > 0:
+        if none_above_node_name:
             index = np.argwhere(valid_effort_nodes == none_above_node_name[0])
             valid_effort_nodes = np.delete(valid_effort_nodes, index)
 
-        node_title_map = dict()
+        node_title_map = {}
         if assistant_nodes is not None:
             for idx, node in assistant_nodes.iterrows():
                 if str(node['title']) != 'nan':
@@ -598,33 +608,41 @@ def show_node_effort(disambiguation_utterances, assistant_nodes=None, interval=N
         if start_datetime == end_datetime:
             start_datetime -= delta
             end_datetime += delta
-        time_index_df = pd.DataFrame([dt for dt in datetime_range(start_datetime, end_datetime, delta)],
-                                     columns=['request_datetime_interval'])
+        time_index_df = pd.DataFrame(
+            list(datetime_range(start_datetime, end_datetime, delta)),
+            columns=['request_datetime_interval'],
+        )
         for node_id in valid_effort_nodes:
             node_effort_df = dialog_node_effort_df.loc[dialog_node_effort_df['selected_dialog_node'] == node_id][
                 ['request_datetime_interval', 'effort_score']]
             time_index_df = time_index_df.merge(node_effort_df, how='left', on=['request_datetime_interval'])
-            if node_id in node_title_map:
-                node_name = node_title_map[node_id]
-            else:
-                node_name = node_id
-            time_index_df.rename(columns={'effort_score': 'effort_score_{}'.format(node_name)}, inplace=True)
+            node_name = node_title_map.get(node_id, node_id)
+            time_index_df.rename(
+                columns={'effort_score': f'effort_score_{node_name}'},
+                inplace=True,
+            )
         time_index_df = time_index_df.fillna(0)
 
-        if valid_effort_nodes[0] in node_title_map:
-            default_node_name = node_title_map[valid_effort_nodes[0]]
-        else:
-            default_node_name = valid_effort_nodes[0]
-        node_effort_df = time_index_df[['request_datetime_interval', 'effort_score_{}'.format(default_node_name)]]
+        default_node_name = node_title_map.get(
+            valid_effort_nodes[0], valid_effort_nodes[0]
+        )
+        node_effort_df = time_index_df[
+            ['request_datetime_interval', f'effort_score_{default_node_name}']
+        ]
         node_effort_df.columns = ['request_datetime_interval', 'effort_score']
         output_notebook(hide_banner=True)
 
         source = ColumnDataSource(node_effort_df)
         source_all = ColumnDataSource(time_index_df)
 
-        p = figure(plot_width=950, plot_height=350, x_axis_type="datetime",
-                   x_range=(start_datetime - start_delta, end_datetime + end_delta),
-                   y_range=DataRange1d(start=0), title='Dialog node: "{}"'.format(default_node_name))
+        p = figure(
+            plot_width=950,
+            plot_height=350,
+            x_axis_type="datetime",
+            x_range=(start_datetime - start_delta, end_datetime + end_delta),
+            y_range=DataRange1d(start=0),
+            title=f'Dialog node: "{default_node_name}"',
+        )
 
         p.vbar(x='request_datetime_interval', top='effort_score', source=source, width=bar_width, fill_color='#BFC5CD',
                line_color='#BFC5CD', hover_fill_color='#1C679A', hover_line_color='#1C679A')
